@@ -1,0 +1,131 @@
+#include <Wire.h> 
+#include <LiquidCrystal_I2C.h>
+#include <Keypad.h>
+
+LiquidCrystal_I2C lcd(0x27,16,2);  
+const char keys[4][4]={{'1','2','3','+'},
+                       {'4','5','6','-'},
+                       {'7','8','9','*'},
+                       {' ','0','=','/'}
+};
+byte rows[] = {11, 10, 9, 8}; 
+byte cols[] = {7, 6, 5, 4}; 
+Keypad keypad1 = Keypad( makeKeymap(keys), rows, cols, 4, 4); 
+
+int pos=0;
+int endkey=0;  // 1 - цифра, 2 - действиеб 3 - результат
+char buf[32];
+
+void setup()
+{
+  Serial.begin(9600);
+  lcd.init();
+  lcd.backlight();
+  lcd.cursor();
+  for(int i=0;i<32;i++)
+     buf[i]=0;
+}
+
+
+void loop() {
+  char key = keypad1.getKey();
+  if (key){
+    Serial.print(key,HEX);Serial.println();
+    addkey(key);
+  }
+}
+
+void addkey(char k) {
+  switch(k) {
+    case '+': if(endkey==1) {
+                 buf[pos]=k;tolcd(k);endkey=2;
+              }
+        break;
+    case '-': if(endkey==1) {
+                 buf[pos]=k;tolcd(k);endkey=2;
+              }
+        break;
+    case '*': if(endkey==1) {
+                 buf[pos]=k;tolcd(k);endkey=2;
+              }
+        break;
+    case '/': if(endkey==1) {
+                 buf[pos]=k;tolcd(k);endkey=2;
+              }
+        break;
+    case ' ': pos=max(0,pos-1);tolcd(k);
+              pos=pos-1;lcd.setCursor(pos%15,pos/15);
+              if(pos==0) 
+                 endkey=0;
+              else if(buf[pos-1]>=0x30 && buf[pos-1]<=0x39)
+                  endkey=1;
+              else
+                  endkey=2;   
+        break;
+    case '=': if(endkey==1) {
+                 buf[pos]=k;tolcd(k);
+                 getsumma();
+                 endkey=3;
+              }
+        break;
+    // 0-9    
+    default : if(endkey==3) {
+                 startover();pos=0;}
+              buf[pos]=k;tolcd(k);endkey=1;
+        break;
+  } 
+}
+
+void tolcd(char k) {
+  lcd.setCursor(pos%15,pos/15);
+  lcd.print(k);
+  pos=pos+1;
+}
+
+void getsumma() {
+   String number1="";
+   String number2="";
+   char d;
+   int i;
+   int summa;
+   // получить первое число
+   for(i=0;i<pos;i++) {
+     if(buf[i]>=0x30 && buf[i]<=0x39)
+        number1+=buf[i];
+     else
+        break;   
+   }
+   Serial.print("number1=");Serial.print(number1.toInt());
+   // действие
+   d=buf[i];
+   Serial.print("  d=");Serial.println(buf[i]);
+   // получить второе число
+   for(i=i+1;i<pos;i++) {
+     if(buf[i]>=0x30 && buf[i]<=0x39)
+        number2+=buf[i];
+     else
+        break;   
+   }
+   Serial.print("number2=");Serial.print(number2.toInt());
+   switch(d) {
+      case '+': summa=number1.toInt()+number2.toInt();
+         break;
+      case '-': summa=number1.toInt()-number2.toInt();
+         break;
+      case '*': summa=number1.toInt()*number2.toInt();
+         break;
+      case '/': summa=number1.toInt()/number2.toInt();
+         break;
+      default: 
+         break;      
+   }
+   lcd.setCursor(pos%15,pos/15);
+   lcd.print(summa);
+}
+
+void startover() {
+   for(int i=0;i<=pos;i++) {
+      buf[i]=0;
+   }
+   lcd.clear();  
+}
